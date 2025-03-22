@@ -1,0 +1,61 @@
+from math import exp, log, sqrt
+import numpy as np
+import scipy.stats
+
+
+# Calcul des prix des options européennes vanille (Call et Put) avec Black-Scholes
+
+def norm_cdf(x):
+    """Fonction de répartition de la loi normale standard."""
+    return scipy.stats.norm.cdf(x)
+
+def norm_pdf(x):
+    """Densité de probabilité de la loi normale standard."""
+    return scipy.stats.norm.pdf(x)
+
+def d_j(j, S, K, r, v, T):
+    """Calcul des variables auxiliaires d1 et d2 utilisées dans la formule de Black-Scholes."""
+    return (log(S / K) + (r + (-1) ** (j - 1) * 0.5 * v ** 2) * T) / (v * sqrt(T))
+
+def vanilla_price(S, K, r, v, T, option_type="c"):
+    """
+    Calcule le prix d'une option européenne (Call ou Put) et ses sensibilités :
+    - Delta : Sensibilité du prix de l'option aux variations du sous-jacent
+    - Gamma : Sensibilité du Delta aux variations du sous-jacent
+    - Vega : Sensibilité du prix à la volatilité
+    - Theta : Sensibilité du prix au temps (décroissance temporelle)
+    - Rho : Sensibilité aux taux d'intérêt
+    """
+    d1 = d_j(1, S, K, r, v, T)
+    d2 = d_j(2, S, K, r, v, T)
+    
+    try:
+        if option_type == 'c':
+            price = S * norm_cdf(d1) - K * exp(-r * T) * norm_cdf(d2)
+            delta_calc = norm_cdf(d1)
+            theta_calc = - (S * norm_pdf(d1) * v) / (2 * sqrt(T)) - r * K * exp(-r * T) * norm_cdf(d2)
+            rho_calc = K * T * exp(-r * T) * norm_cdf(d2)
+            print('\nOption Call\n')
+        elif option_type == 'p':
+            price = K * exp(-r * T) * norm_cdf(-d2) - S * norm_cdf(-d1)
+            delta_calc = -norm_cdf(-d1)
+            theta_calc = - (S * norm_pdf(d1) * v) / (2 * sqrt(T)) + r * K * exp(-r * T) * norm_cdf(-d2)
+            rho_calc = -K * T * exp(-r * T) * norm_cdf(-d2)
+            print('\nOption Put\n')
+        else:
+            raise ValueError("Type d'option invalide. Utiliser 'c' pour Call ou 'p' pour Put.")
+        
+        gamma_calc = norm_pdf(d1) / (S * v * sqrt(T))
+        vega_calc = S * norm_pdf(d1) * sqrt(T)
+        
+        # Affichage des résultats
+        print(f"Prix de l'option : {price:.4f}")
+        print(f"       Delta : {delta_calc:.4f}")
+        print(f"       Gamma : {gamma_calc:.4f}")
+        print(f"       Vega  : {vega_calc:.4f}")
+        print(f"       Theta : {theta_calc:.4f}")
+        print(f"       Rho   : {rho_calc:.4f}")
+        
+        return price, gamma_calc, delta_calc, vega_calc, theta_calc, rho_calc
+    except Exception as e:
+        print(f"Erreur : {e}")
